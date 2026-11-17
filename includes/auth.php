@@ -10,7 +10,7 @@ function require_login(): void
 {
     if (!is_logged_in()) {
         set_flash('error', 'Please log in to access the administration dashboard.');
-        redirect('/admin/login.php');
+        redirect('login.php');
     }
 }
 
