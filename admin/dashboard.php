@@ -4,17 +4,13 @@ require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 
 require_login();
-
 $pdo = db_connect();
 
-$stmt = $pdo->query('SELECT COUNT(*) AS total FROM projects WHERE is_published = 1');
-$projectCount = (int) ($stmt->fetch()['total'] ?? 0);
-$stmt = $pdo->query('SELECT COUNT(*) AS total FROM skills');
-$skillCount = (int) ($stmt->fetch()['total'] ?? 0);
-$stmt = $pdo->query('SELECT COUNT(*) AS total FROM contact_messages');
-$messageCount = (int) ($stmt->fetch()['total'] ?? 0);
-$stmt = $pdo->query('SELECT COUNT(*) AS total FROM education');
-$educationCount = (int) ($stmt->fetch()['total'] ?? 0);
+$projectCount = (int) $pdo->query('SELECT COUNT(*) FROM projects WHERE is_published = 1')->fetchColumn();
+$skillCount = (int) $pdo->query('SELECT COUNT(*) FROM skills')->fetchColumn();
+$messageCount = (int) $pdo->query('SELECT COUNT(*) FROM contact_messages')->fetchColumn();
+$educationCount = (int) $pdo->query('SELECT COUNT(*) FROM education')->fetchColumn();
+$experienceCount = (int) $pdo->query('SELECT COUNT(*) FROM experiences')->fetchColumn();
 
 $flashSuccess = get_flash('success');
 $flashError = get_flash('error');
@@ -29,7 +25,7 @@ $flashError = get_flash('error');
         :root { --bg:#f3f2ee; --panel:#fff; --text:#1b1d1f; --muted:#586168; --accent:#2d5f4c; --border:#dfe3d9; --shadow:rgba(21,26,30,.08); }
         * { box-sizing:border-box; }
         body { margin:0; background:var(--bg); color:var(--text); font-family:Arial,sans-serif; }
-        .topbar { background:var(--panel); border-bottom:1px solid var(--border); padding:1rem 2rem; display:flex; justify-content:space-between; align-items:center; }
+        .topbar { background:var(--panel); border-bottom:1px solid var(--border); padding:1rem 2rem; display:flex; justify-content:space-between; align-items:center; gap:1rem; }
         .nav,.actions { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; }
         a { color:inherit; text-decoration:none; }
         .layout { max-width:1200px; margin:0 auto; padding:2rem; }
@@ -60,6 +56,8 @@ $flashError = get_flash('error');
                 <a href="skills.php" class="btn secondary">Skills</a>
                 <a href="projects.php" class="btn secondary">Projects</a>
                 <a href="education.php" class="btn secondary">Education</a>
+                <a href="experience.php" class="btn secondary">Experience</a>
+                <a href="settings.php" class="btn secondary">Settings</a>
                 <a href="messages.php" class="btn secondary">Messages</a>
                 <a href="../index.php" class="btn secondary">Public Site</a>
                 <a href="dashboard.php" class="btn secondary">Refresh</a>
@@ -72,6 +70,7 @@ $flashError = get_flash('error');
             <article class="card"><div class="label">Skills</div><div class="value"><?php echo e((string) $skillCount); ?></div></article>
             <article class="card"><div class="label">Messages</div><div class="value"><?php echo e((string) $messageCount); ?></div></article>
             <article class="card"><div class="label">Education Entries</div><div class="value"><?php echo e((string) $educationCount); ?></div></article>
+            <article class="card"><div class="label">Experience Entries</div><div class="value"><?php echo e((string) $experienceCount); ?></div></article>
         </section>
     </main>
 </body>
