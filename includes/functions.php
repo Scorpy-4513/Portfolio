@@ -1,60 +1,54 @@
 <?php
-function e(string $value): string
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/functions.php';
+
+function fetch_profile(PDO $pdo): array
 {
-    return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    $stmt = $pdo->query('SELECT * FROM profile WHERE id = 1 LIMIT 1');
+    return $stmt->fetch() ?: [];
 }
 
-function redirect(string $path): void
+function fetch_skills(PDO $pdo): array
 {
-    header('Location: ' . $path, true, 302);
-    exit;
+    $stmt = $pdo->query('SELECT * FROM skills ORDER BY sort_order ASC, id ASC');
+    return $stmt->fetchAll() ?: [];
 }
 
-function csrf_token(): string
+function fetch_projects(PDO $pdo): array
 {
-    if (empty($_SESSION['csrf_token'])) {
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    $stmt = $pdo->query('SELECT * FROM projects WHERE is_published = 1 ORDER BY sort_order ASC, id ASC');
+    $projects = $stmt->fetchAll() ?: [];
+
+    foreach ($projects as &$project) {
+        $techStmt = $pdo->prepare('SELECT technology FROM project_technologies WHERE project_id = :project_id ORDER BY sort_order ASC, technology ASC');
+        $techStmt->execute([':project_id' => $project['id']]);
+        $project['technologies'] = array_column($techStmt->fetchAll() ?: [], 'technology');
     }
 
-    return $_SESSION['csrf_token'];
+    return $projects;
 }
 
-function verify_csrf_token(?string $token): bool
+function fetch_education(PDO $pdo): array
 {
-    return is_string($token) && hash_equals($_SESSION['csrf_token'] ?? '', $token);
+    $stmt = $pdo->query('SELECT * FROM education ORDER BY sort_order ASC, end_date DESC, id DESC');
+    return $stmt->fetchAll() ?: [];
 }
 
-function set_flash(string $key, string $message): void
+function fetch_experiences(PDO $pdo): array
 {
-    $_SESSION['flash'][$key] = $message;
+    $stmt = $pdo->query('SELECT * FROM experiences ORDER BY sort_order ASC, start_date DESC, id DESC');
+    return $stmt->fetchAll() ?: [];
 }
 
-function get_flash(string $key): ?string
+function fetch_settings(PDO $pdo): array
 {
-    if (!isset($_SESSION['flash'][$key])) {
-        return null;
+    $stmt = $pdo->query('SELECT setting_key, setting_value FROM settings');
+    $rows = $stmt->fetchAll() ?: [];
+    $settings = [];
+
+    foreach ($rows as $row) {
+        $settings[$row['setting_key']] = $row['setting_value'];
     }
 
-    $message = $_SESSION['flash'][$key];
-    unset($_SESSION['flash'][$key]);
-
-    return $message;
-}
-
-function parse_db_error_message(int $code): string
-{
-    return match ($code) {
-        23000 => 'A duplicate record already exists.',
-        default => 'The database request could not be completed.',
-    };
-}
-
-function is_valid_email(string $email): bool
-{
-    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
-}
-
-function safe_int(string $value): int
-{
-    return max(0, (int) $value);
+    return $settings;
 }
