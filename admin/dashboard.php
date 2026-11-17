@@ -135,7 +135,7 @@ $flashError = get_flash('error');
         <strong>Ajie C. Javier</strong>
         <div class="nav">
             <span>Logged in as <?php echo e(current_admin_name()); ?></span>
-            <a href="/admin/logout.php" class="btn secondary">Logout</a>
+            <a href="logout.php" class="btn secondary">Logout</a>
         </div>
     </header>
 
@@ -144,8 +144,8 @@ $flashError = get_flash('error');
             <h1>Dashboard</h1>
             <p>Manage the public portfolio and administrator content.</p>
             <div class="actions">
-                <a href="/index.php" class="btn secondary">Public Site</a>
-                <a href="/admin/login.php" class="btn secondary">Refresh</a>
+                <a href="../index.php" class="btn secondary">Public Site</a>
+                <a href="dashboard.php" class="btn secondary">Refresh</a>
             </div>
         </section>
 
