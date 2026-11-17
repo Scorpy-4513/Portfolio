@@ -1,5 +1,6 @@
 <?php
+require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/auth.php';
 
 logout_admin();
-redirect('/admin/login.php');
+redirect('login.php');

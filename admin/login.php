@@ -8,7 +8,7 @@ $pdo = db_connect();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
         set_flash('error', 'Security check failed. Please try again.');
-        redirect('/admin/login.php');
+        redirect('login.php');
     }
 
     $email = trim($_POST['email'] ?? '');
@@ -16,11 +16,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $result = login_admin($pdo, $email, $password);
 
     if ($result['success']) {
-        redirect('/admin/dashboard.php');
+        redirect('dashboard.php');
     }
 
     set_flash('error', $result['message']);
-    redirect('/admin/login.php');
+    redirect('login.php');
 }
 
 $flashError = get_flash('error');
@@ -102,7 +102,7 @@ $csrf = csrf_token();
             <div class="alert"><?php echo e($flashError); ?></div>
         <?php endif; ?>
 
-        <form method="post" action="/admin/login.php">
+        <form method="post" action="login.php">
             <input type="hidden" name="csrf_token" value="<?php echo e($csrf); ?>">
 
             <div>
@@ -119,7 +119,7 @@ $csrf = csrf_token();
         </form>
 
         <div class="meta">
-            <a href="/index.php">Return to public site</a>
+            <a href="../index.php">Return to public site</a>
         </div>
     </main>
 </body>
