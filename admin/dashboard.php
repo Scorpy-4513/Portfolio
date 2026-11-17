@@ -144,6 +144,7 @@ $flashError = get_flash('error');
             <h1>Dashboard</h1>
             <p>Manage the public portfolio and administrator content.</p>
             <div class="actions">
+                <a href="profile.php" class="btn secondary">Profile</a>
                 <a href="../index.php" class="btn secondary">Public Site</a>
                 <a href="dashboard.php" class="btn secondary">Refresh</a>
             </div>
