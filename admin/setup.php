@@ -1,125 +1,100 @@
 <?php
-require_once __DIR__ . '/includes/db.php';
-require_once __DIR__ . '/includes/functions.php';
+require_once __DIR__ . '/../includes/db.php';
+require_once __DIR__ . '/../includes/functions.php';
 
 $pdo = db_connect();
-$profile = fetch_profile($pdo);
-$settings = fetch_settings($pdo);
-$successMessage = null;
+$adminCount = (int) $pdo->query('SELECT COUNT(*) FROM admins')->fetchColumn();
+$message = null;
+$messageIsError = false;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($adminCount > 0) {
+    http_response_code(403);
+    $message = 'Administrator setup is already complete. Please use the login page.';
+    $messageIsError = true;
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!verify_csrf_token($_POST['csrf_token'] ?? null)) {
-        $successMessage = 'Security check failed. Please try again.';
+        $message = 'Security check failed. Refresh the page and try again.';
+        $messageIsError = true;
     } else {
-        $name = trim((string) ($_POST['name'] ?? ''));
-        $email = trim((string) ($_POST['email'] ?? ''));
-        $subject = trim((string) ($_POST['subject'] ?? ''));
-        $message = trim((string) ($_POST['message'] ?? ''));
+        $name = trim((string) ($_POST['display_name'] ?? ''));
+        $email = strtolower(trim((string) ($_POST['email'] ?? '')));
+        $password = (string) ($_POST['password'] ?? '');
 
-        if ($name === '' || $email === '' || $subject === '' || $message === '' || !is_valid_email($email)) {
-            $successMessage = 'Please fill in all contact fields with a valid email address.';
+        if ($name === '' || strlen($name) > 120 || !is_valid_email($email) || strlen($email) > 254 || strlen($password) < 12) {
+            $message = 'Enter a display name, valid email, and a password of at least 12 characters.';
+            $messageIsError = true;
         } else {
-            $stmt = $pdo->prepare('INSERT INTO contact_messages (sender_name, sender_email, subject, message) VALUES (:name, :email, :subject, :message)');
-            $stmt->execute([
-                ':name' => $name,
-                ':email' => $email,
-                ':subject' => $subject,
-                ':message' => $message,
-            ]);
-            $successMessage = 'Your message has been sent successfully.';
+            try {
+                // The unique email constraint prevents duplicate accounts. Recheck before insert
+                // so a second setup request cannot silently create an additional admin.
+                $pdo->beginTransaction();
+                $adminCount = (int) $pdo->query('SELECT COUNT(*) FROM admins FOR UPDATE')->fetchColumn();
+                if ($adminCount > 0) {
+                    $pdo->rollBack();
+                    http_response_code(403);
+                    $message = 'Administrator setup is already complete. Please use the login page.';
+                    $messageIsError = true;
+                } else {
+                    $stmt = $pdo->prepare('INSERT INTO admins (email, password_hash, display_name) VALUES (:email, :password_hash, :display_name)');
+                    $stmt->execute([
+                        ':email' => $email,
+                        ':password_hash' => password_hash($password, PASSWORD_DEFAULT),
+                        ':display_name' => $name,
+                    ]);
+                    $pdo->commit();
+                    $message = 'Administrator account created. Continue to the login page.';
+                }
+            } catch (Throwable $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                error_log('Administrator setup failed: ' . $e->getMessage());
+                $message = 'The administrator account could not be created. Check the server log or database setup.';
+                $messageIsError = true;
+            }
         }
     }
 }
 
 $csrf = csrf_token();
-$pdo = null;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact | <?php echo e($profile['full_name'] ?? 'Ajie C. Javier'); ?></title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css">
+    <title>First Admin Setup | Portfolio</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1rem; background: #f5f3ee; color: #1b1f22; font-family: Arial, sans-serif; }
+        main { width: min(100%, 440px); background: white; border: 1px solid #dfe5d9; border-radius: 12px; padding: 2rem; }
+        label { display: block; margin: 1rem 0 .4rem; font-weight: 600; }
+        input { width: 100%; padding: .8rem; border: 1px solid #dfe5d9; border-radius: 6px; font-size: 1rem; }
+        button { width: 100%; margin-top: 1.25rem; padding: .9rem; border: 0; border-radius: 6px; background: #2d5f4c; color: white; font-weight: 700; cursor: pointer; }
+        .notice { margin: 1rem 0; padding: .8rem; border-radius: 6px; background: #ecfdf3; color: #17663a; }
+        .error { background: #fef3f2; color: #a1251b; }
+    </style>
 </head>
 <body>
-    <header class="site-header">
-        <nav class="nav">
-            <a href="index.php" class="nav-logo"><?php echo e($profile['full_name'] ?? 'Ajie C. Javier'); ?></a>
-            <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation menu" aria-expanded="false">
-                <span></span><span></span><span></span>
-            </button>
-            <ul class="nav-links" id="navLinks">
-                <li><a href="index.php">Home</a></li>
-                <li><a href="about.php">About</a></li>
-                <li><a href="skills.php">Skills</a></li>
-                <li><a href="projects.php">Projects</a></li>
-                <li><a href="resume.php">Resume</a></li>
-                <li><a href="contact.php" class="active">Contact</a></li>
-            </ul>
-            <div class="nav-right">
-                <a href="admin/login.php" class="theme-toggle" style="display:inline-block; text-align:center;">Admin</a>
-            </div>
-        </nav>
-    </header>
-
-    <main class="container">
-        <section class="page-intro">
-            <p class="eyebrow">Contact</p>
-            <h1>Let's connect</h1>
-        </section>
-
-        <section class="contact-layout">
-            <div class="contact-info">
-                <p>Feel free to send a message if you want to discuss projects, internships, collaborations, or anything related to web development.</p>
-                <ul class="contact-list">
-                    <?php if (!empty($profile['email'])): ?><li><strong>Email:</strong> <a href="mailto:<?php echo e($profile['email']); ?>"><?php echo e($profile['email']); ?></a></li><?php endif; ?>
-                    <?php if (!empty($profile['github_url'])): ?><li><strong>GitHub:</strong> <a href="<?php echo e($profile['github_url']); ?>" target="_blank" rel="noopener"><?php echo e($profile['github_url']); ?></a></li><?php endif; ?>
-                    <?php if (!empty($profile['facebook_url'])): ?><li><strong>Facebook:</strong> <a href="<?php echo e($profile['facebook_url']); ?>" target="_blank" rel="noopener"><?php echo e($profile['facebook_url']); ?></a></li><?php endif; ?>
-                </ul>
-            </div>
-
-            <form class="contact-form" method="post" action="contact.php">
-                <input type="hidden" name="csrf_token" value="<?php echo e($csrf); ?>">
-                <div class="form-group">
-                    <label for="name">Name</label>
-                    <input id="name" name="name" type="text" required>
-                </div>
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input id="email" name="email" type="email" required>
-                </div>
-                <div class="form-group">
-                    <label for="subject">Subject</label>
-                    <input id="subject" name="subject" type="text" required>
-                </div>
-                <div class="form-group">
-                    <label for="message">Message</label>
-                    <textarea id="message" name="message" rows="5" required></textarea>
-                </div>
-                <?php if ($successMessage): ?>
-                    <p class="form-success"><?php echo e($successMessage); ?></p>
-                <?php endif; ?>
-                <button type="submit" class="btn">Send Message</button>
-            </form>
-        </section>
-    </main>
-
-    <footer class="site-footer">
-        <div class="container footer-inner">
-            <p>&copy; <?php echo date('Y'); ?> <?php echo e($profile['full_name'] ?? 'Ajie C. Javier'); ?>. Built with HTML, CSS &amp; JavaScript.</p>
-            <div class="footer-socials">
-                <?php if (!empty($profile['github_url'])): ?><a href="<?php echo e($profile['github_url']); ?>" target="_blank" rel="noopener">GitHub</a><?php endif; ?>
-                <?php if (!empty($profile['facebook_url'])): ?><a href="<?php echo e($profile['facebook_url']); ?>" target="_blank" rel="noopener">Facebook</a><?php endif; ?>
-                <?php if (!empty($profile['instagram_url'])): ?><a href="<?php echo e($profile['instagram_url']); ?>" target="_blank" rel="noopener">Instagram</a><?php endif; ?>
-                <?php if (!empty($profile['email'])): ?><a href="mailto:<?php echo e($profile['email']); ?>">Email</a><?php endif; ?>
-            </div>
-        </div>
-    </footer>
-
-    <button class="scroll-top-btn" id="scrollTopBtn" aria-label="Scroll to top">↑</button>
-    <script src="js/script.js"></script>
+<main>
+    <h1>Set up administrator</h1>
+    <p>This one-time form creates the first dashboard account. Use a unique password and keep it private.</p>
+    <?php if ($message !== null): ?>
+        <p class="notice<?php echo $messageIsError ? ' error' : ''; ?>"><?php echo e($message); ?></p>
+    <?php endif; ?>
+    <?php if ($adminCount === 0): ?>
+        <form method="post" action="setup.php">
+            <input type="hidden" name="csrf_token" value="<?php echo e($csrf); ?>">
+            <label for="display_name">Display name</label>
+            <input id="display_name" name="display_name" type="text" maxlength="120" required autocomplete="name">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" maxlength="254" required autocomplete="username">
+            <label for="password">Password (at least 12 characters)</label>
+            <input id="password" name="password" type="password" minlength="12" required autocomplete="new-password">
+            <button type="submit">Create administrator</button>
+        </form>
+    <?php endif; ?>
+    <p><a href="login.php">Go to login</a></p>
+</main>
 </body>
 </html>
