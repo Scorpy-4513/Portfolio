@@ -12,8 +12,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('skills.php');
     }
 
-    if (($_POST['action'] ?? '') === 'delete') {
-        $id = (int) ($_POST['id'] ?? 0);
+    $action = $_POST['action'] ?? 'save';
+    $id = (int) ($_POST['id'] ?? 0);
+
+    if ($action === 'delete') {
         if ($id > 0) {
             $stmt = $pdo->prepare('DELETE FROM skills WHERE id = :id');
             $stmt->execute([':id' => $id]);
@@ -28,16 +30,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('skills.php');
     }
 
-    $stmt = $pdo->prepare('INSERT INTO skills (name, category, proficiency, description, sort_order) VALUES (:name, :category, :proficiency, :description, :sort_order)');
-    $stmt->execute([
-        ':name' => $name,
-        ':category' => trim((string) ($_POST['category'] ?? 'General')) ?: 'General',
-        ':proficiency' => max(0, min(100, (int) ($_POST['proficiency'] ?? 50))),
-        ':description' => trim((string) ($_POST['description'] ?? '')),
-        ':sort_order' => (int) ($_POST['sort_order'] ?? 0),
-    ]);
-    set_flash('success', 'Skill added.');
+    $category = trim((string) ($_POST['category'] ?? 'General')) ?: 'General';
+    $proficiency = max(0, min(100, (int) ($_POST['proficiency'] ?? 50)));
+    $description = trim((string) ($_POST['description'] ?? ''));
+    $sortOrder = (int) ($_POST['sort_order'] ?? 0);
+
+    if ($id > 0) {
+        $stmt = $pdo->prepare('UPDATE skills SET name = :name, category = :category, proficiency = :proficiency, description = :description, sort_order = :sort_order WHERE id = :id');
+        $stmt->execute([
+            ':id' => $id,
+            ':name' => $name,
+            ':category' => $category,
+            ':proficiency' => $proficiency,
+            ':description' => $description,
+            ':sort_order' => $sortOrder,
+        ]);
+        set_flash('success', 'Skill updated.');
+    } else {
+        $stmt = $pdo->prepare('INSERT INTO skills (name, category, proficiency, description, sort_order) VALUES (:name, :category, :proficiency, :description, :sort_order)');
+        $stmt->execute([
+            ':name' => $name,
+            ':category' => $category,
+            ':proficiency' => $proficiency,
+            ':description' => $description,
+            ':sort_order' => $sortOrder,
+        ]);
+        set_flash('success', 'Skill added.');
+    }
+
     redirect('skills.php');
+}
+
+$editingId = (int) ($_GET['edit'] ?? 0);
+$editingSkill = null;
+if ($editingId > 0) {
+    $stmt = $pdo->prepare('SELECT * FROM skills WHERE id = :id LIMIT 1');
+    $stmt->execute([':id' => $editingId]);
+    $editingSkill = $stmt->fetch() ?: null;
 }
 
 $skills = $pdo->query('SELECT * FROM skills ORDER BY sort_order ASC, id ASC')->fetchAll() ?: [];
@@ -66,34 +95,87 @@ $csrf = csrf_token();
         .fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; }
         label { display:block; font-weight:700; margin-bottom:8px; }
         input, textarea { width:100%; padding:10px 12px; border:1px solid #dfe3d9; border-radius:8px; font-size:16px; box-sizing:border-box; }
+        textarea { min-height:120px; }
         table { width:100%; border-collapse:collapse; margin-top:24px; }
         th,td { border:1px solid #dfe3d9; text-align:left; padding:12px; }
+        .actions { display:flex; gap:8px; flex-wrap:wrap; }
     </style>
 </head>
 <body>
     <main class="wrap">
-        <div class="top"><h1>Skills</h1><a href="dashboard.php" class="btn secondary">Back to Dashboard</a></div>
+        <div class="top">
+            <h1>Skills</h1>
+            <a href="dashboard.php" class="btn secondary">Back to Dashboard</a>
+        </div>
         <?php if ($flashSuccess): ?><div class="alert success"><?php echo e($flashSuccess); ?></div><?php endif; ?>
         <?php if ($flashError): ?><div class="alert error"><?php echo e($flashError); ?></div><?php endif; ?>
         <section class="panel">
             <form method="post" action="skills.php">
                 <input type="hidden" name="csrf_token" value="<?php echo e($csrf); ?>">
+                <?php if ($editingSkill): ?>
+                    <input type="hidden" name="id" value="<?php echo e((string) $editingSkill['id']); ?>">
+                <?php endif; ?>
                 <div class="fields">
-                    <div><label for="name">Skill name</label><input id="name" name="name" required></div>
-                    <div><label for="category">Category</label><input id="category" name="category" value="General"></div>
-                    <div><label for="proficiency">Proficiency (0–100)</label><input id="proficiency" name="proficiency" type="number" min="0" max="100" value="50"></div>
-                    <div><label for="sort_order">Order</label><input id="sort_order" name="sort_order" type="number" value="0"></div>
+                    <div>
+                        <label for="name">Skill name</label>
+                        <input id="name" name="name" value="<?php echo e((string) ($editingSkill['name'] ?? '')); ?>" required>
+                    </div>
+                    <div>
+                        <label for="category">Category</label>
+                        <input id="category" name="category" value="<?php echo e((string) ($editingSkill['category'] ?? 'General')); ?>">
+                    </div>
+                    <div>
+                        <label for="proficiency">Proficiency (0–100)</label>
+                        <input id="proficiency" name="proficiency" type="number" min="0" max="100" value="<?php echo e((string) ($editingSkill['proficiency'] ?? 50)); ?>">
+                    </div>
+                    <div>
+                        <label for="sort_order">Order</label>
+                        <input id="sort_order" name="sort_order" type="number" value="<?php echo e((string) ($editingSkill['sort_order'] ?? 0)); ?>">
+                    </div>
                 </div>
-                <div><label for="description">Description</label><textarea id="description" name="description"></textarea></div>
-                <button class="btn" type="submit">Add Skill</button>
+                <div>
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description"><?php echo e((string) ($editingSkill['description'] ?? '')); ?></textarea>
+                </div>
+                <div class="actions">
+                    <button class="btn" type="submit"><?php echo $editingSkill ? 'Update Skill' : 'Add Skill'; ?></button>
+                    <?php if ($editingSkill): ?>
+                        <a href="skills.php" class="btn secondary">Cancel</a>
+                    <?php endif; ?>
+                </div>
             </form>
-            <table><thead><tr><th>Name</th><th>Category</th><th>Proficiency</th><th>Description</th><th>Action</th></tr></thead><tbody>
-                <?php foreach ($skills as $skill): ?><tr>
-                    <td><?php echo e((string) $skill['name']); ?></td><td><?php echo e((string) $skill['category']); ?></td>
-                    <td><?php echo e((string) $skill['proficiency']); ?>%</td><td><?php echo e((string) $skill['description']); ?></td>
-                    <td><form method="post" action="skills.php"><input type="hidden" name="csrf_token" value="<?php echo e($csrf); ?>"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?php echo e((string) $skill['id']); ?>"><button class="btn danger" type="submit">Delete</button></form></td>
-                </tr><?php endforeach; ?>
-            </tbody></table>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Proficiency</th>
+                        <th>Description</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($skills as $skill): ?>
+                        <tr>
+                            <td><?php echo e((string) ($skill['name'] ?? '')); ?></td>
+                            <td><?php echo e((string) ($skill['category'] ?? 'General')); ?></td>
+                            <td><?php echo e((string) ($skill['proficiency'] ?? 0)); ?>%</td>
+                            <td><?php echo nl2br(e((string) ($skill['description'] ?? ''))); ?></td>
+                            <td>
+                                <div class="actions">
+                                    <a href="skills.php?edit=<?php echo (int) ($skill['id'] ?? 0); ?>" class="btn secondary">Edit</a>
+                                    <form method="post" action="skills.php" style="display:inline;">
+                                        <input type="hidden" name="csrf_token" value="<?php echo e($csrf); ?>">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="id" value="<?php echo e((string) ($skill['id'] ?? 0)); ?>">
+                                        <button type="submit" class="btn danger">Delete</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
         </section>
     </main>
 </body>
