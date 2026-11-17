@@ -19,9 +19,13 @@ if ($adminCount > 0) {
         $name = trim((string) ($_POST['display_name'] ?? ''));
         $email = strtolower(trim((string) ($_POST['email'] ?? '')));
         $password = (string) ($_POST['password'] ?? '');
+        $confirmPassword = (string) ($_POST['confirm_password'] ?? '');
 
         if ($name === '' || strlen($name) > 120 || !is_valid_email($email) || strlen($email) > 254 || strlen($password) < 12) {
             $message = 'Enter a display name, valid email, and a password of at least 12 characters.';
+            $messageIsError = true;
+        } elseif (!hash_equals($password, $confirmPassword)) {
+            $message = 'The passwords do not match. Please check both password fields.';
             $messageIsError = true;
         } else {
             try {
@@ -69,8 +73,11 @@ $csrf = csrf_token();
         body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 1rem; background: #f5f3ee; color: #1b1f22; font-family: Arial, sans-serif; }
         main { width: min(100%, 440px); background: white; border: 1px solid #dfe5d9; border-radius: 12px; padding: 2rem; }
         label { display: block; margin: 1rem 0 .4rem; font-weight: 600; }
+        .password-wrap { display: flex; gap: .5rem; }
+        .password-wrap input { flex: 1; min-width: 0; }
         input { width: 100%; padding: .8rem; border: 1px solid #dfe5d9; border-radius: 6px; font-size: 1rem; }
-        button { width: 100%; margin-top: 1.25rem; padding: .9rem; border: 0; border-radius: 6px; background: #2d5f4c; color: white; font-weight: 700; cursor: pointer; }
+        .toggle-password { padding: .7rem; border: 1px solid #dfe5d9; border-radius: 6px; background: #fff; color: #1b1f22; cursor: pointer; white-space: nowrap; }
+        .submit-button { width: 100%; margin-top: 1.25rem; padding: .9rem; border: 0; border-radius: 6px; background: #2d5f4c; color: white; font-weight: 700; cursor: pointer; }
         .notice { margin: 1rem 0; padding: .8rem; border-radius: 6px; background: #ecfdf3; color: #17663a; }
         .error { background: #fef3f2; color: #a1251b; }
     </style>
@@ -90,11 +97,31 @@ $csrf = csrf_token();
             <label for="email">Email</label>
             <input id="email" name="email" type="email" maxlength="254" required autocomplete="username">
             <label for="password">Password (at least 12 characters)</label>
-            <input id="password" name="password" type="password" minlength="12" required autocomplete="new-password">
-            <button type="submit">Create administrator</button>
+            <div class="password-wrap">
+                <input id="password" name="password" type="password" minlength="12" required autocomplete="new-password">
+                <button class="toggle-password" type="button" data-password-toggle="password" aria-controls="password" aria-label="Show password" aria-pressed="false">Show</button>
+            </div>
+            <label for="confirm_password">Confirm password</label>
+            <div class="password-wrap">
+                <input id="confirm_password" name="confirm_password" type="password" minlength="12" required autocomplete="new-password">
+                <button class="toggle-password" type="button" data-password-toggle="confirm_password" aria-controls="confirm_password" aria-label="Show confirmation password" aria-pressed="false">Show</button>
+            </div>
+            <button class="submit-button" type="submit">Create administrator</button>
         </form>
     <?php endif; ?>
     <p><a href="login.php">Go to login</a></p>
 </main>
+<script>
+document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+        const input = document.getElementById(button.dataset.passwordToggle);
+        const reveal = input.type === 'password';
+        input.type = reveal ? 'text' : 'password';
+        button.textContent = reveal ? 'Hide' : 'Show';
+        button.setAttribute('aria-label', `${reveal ? 'Hide' : 'Show'} ${input.id === 'password' ? 'password' : 'confirmation password'}`);
+        button.setAttribute('aria-pressed', String(reveal));
+    });
+});
+</script>
 </body>
 </html>
