@@ -708,3 +708,8 @@ html[data-theme="dark"] .scroll-top-btn {
     border-bottom: 1px solid #33352F;
   }
 }
+
+.site-logo { display: inline-block; width: 32px; height: 32px; object-fit: cover; vertical-align: middle; margin-right: 0.5rem; }
+.skill-category { font-size: 0.8rem; color: #6B6B66; margin-bottom: 0.5rem; }
+.achievement-image { max-width: 240px; margin-top: 1rem; }
+.honeypot { position: absolute; left: -10000px; }

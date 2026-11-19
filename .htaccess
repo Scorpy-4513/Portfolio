@@ -1,0 +1,9 @@
+DirectoryIndex index.php
+Options -Indexes
+RewriteEngine On
+RewriteRule (^|/)\. - [F,L]
+RewriteRule ^(index|about|skills|projects|resume|contact)\.html$ $1.php [L,QSA]
+RewriteRule ^(includes|database|scripts)/ - [F,L]
+<FilesMatch "^(\.env|README\.md)$">
+Require all denied
+</FilesMatch>
