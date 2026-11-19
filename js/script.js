@@ -11,7 +11,7 @@ if (navToggle && navLinks) {
 
 //FEATURE 2: ACTIVE NAVIGATION HIGHLIGHT
 function setActiveNavLink() {
-  const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+  const currentPage = window.location.pathname.split('/').pop() || 'index.php';
   const links = document.querySelectorAll('.nav-links a');
 
   links.forEach(link => {
@@ -34,7 +34,7 @@ function applyTheme(theme) {
   }
 }
 
-const savedTheme = localStorage.getItem('theme') || 'light';
+const savedTheme = localStorage.getItem('theme') || root.dataset.defaultTheme || 'light';
 applyTheme(savedTheme);
 
 if (themeToggle) {
@@ -60,79 +60,6 @@ if (scrollTopBtn) {
 
   scrollTopBtn.addEventListener('click', () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
-}
-
-//FEATURE 5: CONTACT FORM VALIDATION
-const contactForm = document.getElementById('contactForm');
-
-if (contactForm) {
-  const nameInput = document.getElementById('name');
-  const emailInput = document.getElementById('email');
-  const messageInput = document.getElementById('message');
-
-  const nameError = document.getElementById('nameError');
-  const emailError = document.getElementById('emailError');
-  const messageError = document.getElementById('messageError');
-  const formSuccess = document.getElementById('formSuccess');
-
-  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  function showError(input, errorEl, message) {
-    input.classList.add('invalid');
-    errorEl.textContent = message;
-  }
-
-  function clearError(input, errorEl) {
-    input.classList.remove('invalid');
-    errorEl.textContent = '';
-  }
-
-  function validateForm() {
-    let isValid = true;
-
-
-    if (nameInput.value.trim().length < 2) {
-      showError(nameInput, nameError, 'Please enter your full name.');
-      isValid = false;
-    } else {
-      clearError(nameInput, nameError);
-    }
-
-    if (!emailPattern.test(emailInput.value.trim())) {
-      showError(emailInput, emailError, 'Please enter a valid email address.');
-      isValid = false;
-    } else {
-      clearError(emailInput, emailError);
-    }
-
-    if (messageInput.value.trim().length < 10) {
-      showError(messageInput, messageError, 'Message should be at least 10 characters.');
-      isValid = false;
-    } else {
-      clearError(messageInput, messageError);
-    }
-
-    return isValid;
-  }
-
-  contactForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-
-    if (validateForm()) {
-      formSuccess.textContent = 'Thanks! Your message has been sent.';
-      contactForm.reset();
-    } else {
-      formSuccess.textContent = '';
-    }
-  });
-
-  [nameInput, emailInput, messageInput].forEach((input) => {
-    input.addEventListener('input', () => {
-      if (input.classList.contains('invalid')) {
-        validateForm();
-      }
-    });
   });
 }
 
